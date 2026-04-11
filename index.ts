@@ -1,58 +1,75 @@
 import { createAppAuth } from "@octokit/auth-app";
-import { Command } from "commander";
+import { homedir } from "node:os";
+import rc from "rc";
+import { z } from "zod";
 
-const program = new Command();
+const ConfigSchema = z.object({
+  appId: z.coerce.number().int().positive(),
+  installationId: z.coerce.number().int().positive(),
+  privateKeyPath: z.string().min(1),
+  ghPath: z.string().min(1).default("/usr/bin/gh"),
+});
 
-program
-  .name("gh-token")
-  .description(
-    `Mint a GitHub App installation access token and print it to stdout.
+type Config = z.infer<typeof ConfigSchema>;
 
-The token is never written to disk — capture it via a command substitution
-or pipe it directly into the consumer (e.g. \`GH_TOKEN="$(gh-token)" gh …\`).
+const expandHome = (p: string): string =>
+  p.startsWith("~/") ? `${homedir()}${p.slice(1)}` : p;
 
-Required environment variables:
-  GH_APP_ID           Numeric ID of the GitHub App (Settings → Developer settings → GitHub Apps).
-  GH_INSTALLATION_ID  Numeric ID of the installation to mint a token for. Find it under the
-                      App's "Install App" page, or via GET /app/installations.
-  GH_PRIVATE_KEY_PATH  Absolute path to the App's PEM private key file downloaded from GitHub.
+// rc("gh", defaults, argv) — passing {} as argv disables minimist parsing,
+// so every command-line argument is forwarded to the real gh unchanged.
+const raw = rc("gh", {}, {}) as Record<string, unknown>;
 
-Example:
-  GH_APP_ID=123456 \\
-  GH_INSTALLATION_ID=7890123 \\
-  GH_PRIVATE_KEY_PATH=/etc/gh-token/app.pem \\
-    gh-token`,
-  )
-  .version("0.0.1")
-  .action(async () => {
-    const appId = process.env.GH_APP_ID;
-    const installationId = process.env.GH_INSTALLATION_ID;
-    const privateKeyPath = process.env.GH_PRIVATE_KEY_PATH;
+const parsed = ConfigSchema.safeParse({
+  appId: raw.appId,
+  installationId: raw.installationId,
+  privateKeyPath: raw.privateKeyPath,
+  ghPath: raw.ghPath,
+});
 
-    const missing = [
-      !appId && "GH_APP_ID",
-      !installationId && "GH_INSTALLATION_ID",
-      !privateKeyPath && "GH_PRIVATE_KEY_PATH",
-    ].filter(Boolean);
+if (!parsed.success) {
+  console.error("gh wrapper: invalid or missing config in .ghrc");
+  for (const issue of parsed.error.issues) {
+    const path = issue.path.join(".") || "(root)";
+    console.error(`  - ${path}: ${issue.message}`);
+  }
+  console.error(
+    "\nExpected a .ghrc file at one of rc's search paths, e.g. ~/.ghrc:",
+  );
+  console.error("  appId=3308769");
+  console.error("  installationId=122209632");
+  console.error("  privateKeyPath=~/.github/gh.pem");
+  console.error("  ghPath=/usr/bin/gh");
+  process.exit(1);
+}
 
-    if (missing.length > 0) {
-      program.error(
-        `Missing required environment variables: ${missing.join(", ")}\n\nRun \`gh-token --help\` for details.`,
-      );
-    }
+const config: Config = {
+  ...parsed.data,
+  privateKeyPath: expandHome(parsed.data.privateKeyPath),
+  ghPath: expandHome(parsed.data.ghPath),
+};
 
-    const privateKey = await Bun.file(privateKeyPath!).text();
-    if (!privateKey) {
-      program.error(`Failed to read private key from ${privateKeyPath}`);
-    }
+const privateKey = await Bun.file(config.privateKeyPath).text();
+if (!privateKey) {
+  console.error(
+    `gh wrapper: could not read private key at ${config.privateKeyPath}`,
+  );
+  process.exit(1);
+}
 
-    const auth = createAppAuth({ appId: appId!, privateKey });
-    const { token } = await auth({
-      type: "installation",
-      installationId: installationId!,
-    });
+const auth = createAppAuth({
+  appId: config.appId,
+  privateKey,
+});
 
-    process.stdout.write(token);
-  });
+const { token } = await auth({
+  type: "installation",
+  installationId: config.installationId,
+});
 
-await program.parseAsync();
+const proc = Bun.spawn([config.ghPath, ...process.argv.slice(2)], {
+  stdio: ["inherit", "inherit", "inherit"],
+  env: { ...process.env, GH_TOKEN: token },
+});
+
+await proc.exited;
+process.exit(proc.exitCode ?? 1);

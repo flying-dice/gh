@@ -37,4 +37,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.pem
 
 # compiled binary
-/gh-token
+/dist
+
+# per-user config (may reference private keys, never commit)
+.ghrc
