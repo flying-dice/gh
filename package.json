@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "bun build ./bin.ts --compile --outfile gh-token",
+    "build": "bun build ./index.ts --compile --outfile gh-token",
     "install:ubuntu": "bun run build && sudo install -m 755 gh-token /usr/local/bin/gh-token"
   },
   "devDependencies": {
