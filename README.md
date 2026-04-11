@@ -1,6 +1,6 @@
 # gh-token
 
-A tiny CLI that mints a **GitHub App installation access token** and writes it to `~/.github/.gh_token`. The token is also printed to stdout so it can be piped or captured directly.
+A tiny CLI that mints a **GitHub App installation access token** and prints it to stdout. The token is never written to disk — capture it via command substitution or pipe it directly into whatever consumes it.
 
 Useful when you need a short-lived GitHub token for CI jobs, git credential helpers, or scripts that call the GitHub API on behalf of an App installation — without hard-coding a PAT.
 
@@ -48,10 +48,7 @@ GH_PRIVATE_KEY_PATH=/etc/gh-token/app.pem \
   gh-token
 ```
 
-The token is:
-
-1. Written to `~/.github/.gh_token`
-2. Printed to stdout (no trailing newline), so it composes cleanly with pipes:
+The token is printed to stdout with no trailing newline, so it composes cleanly with command substitution — nothing is written to disk:
 
 ```bash
 # Use directly with the GitHub CLI
@@ -71,7 +68,7 @@ gh-token --help
 
 - **Never commit your `.pem` private key.** The repo's `.gitignore` excludes `*.pem`, but double-check before pushing.
 - Installation tokens are short-lived (expire after ~1 hour) — regenerate via `gh-token` as needed rather than caching.
-- `~/.github/.gh_token` is written with default user permissions; restrict the parent directory if you share the machine.
+- The token is only written to stdout; `gh-token` never persists it to disk. Capture it with command substitution into a short-lived variable so it isn't left in shell history or on the filesystem.
 
 ## Development
 

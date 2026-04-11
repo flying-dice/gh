@@ -1,16 +1,15 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Command } from "commander";
-import { homedir } from "node:os";
-import { join } from "node:path";
 
 const program = new Command();
 
 program
   .name("gh-token")
   .description(
-    `Mint a GitHub App installation access token and write it to ~/.github/.gh_token.
+    `Mint a GitHub App installation access token and print it to stdout.
 
-The token is also printed to stdout so it can be piped or captured directly.
+The token is never written to disk — capture it via a command substitution
+or pipe it directly into the consumer (e.g. \`GH_TOKEN="$(gh-token)" gh …\`).
 
 Required environment variables:
   GH_APP_ID           Numeric ID of the GitHub App (Settings → Developer settings → GitHub Apps).
@@ -53,7 +52,6 @@ Example:
       installationId: installationId!,
     });
 
-    await Bun.write(join(homedir(), ".github", ".gh_token"), token);
     process.stdout.write(token);
   });
 
