@@ -1,0 +1,20 @@
+{
+  "name": "gh-token",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "bun build ./bin.ts --compile --outfile gh-token",
+    "install:ubuntu": "bun run build && sudo install -m 755 gh-token /usr/local/bin/gh-token"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^8.2.0",
+    "commander": "^12.1.0"
+  }
+}
