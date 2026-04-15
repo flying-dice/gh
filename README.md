@@ -4,6 +4,8 @@ A transparent **drop-in replacement for the `gh` CLI** that mints a fresh GitHub
 
 Every call to `gh` goes through this wrapper, which reads a per-user `.ghrc`, mints a short-lived installation token via `@octokit/auth-app`, and then `exec`s the real `gh` binary with `GH_TOKEN` set — so the token lives only for the lifetime of that one command and is never stored on disk, in history, or in the environment of anything but the child process.
 
+If no `.ghrc` is present (none of `appId`, `installationId`, or `privateKeyPath` set), the wrapper transparently passes through to `/usr/bin/gh` with no token injection, so it remains safe to install system-wide even for users who haven't configured an App.
+
 The result: each Linux user on the box appears to GitHub as a distinct `<user>-bot[bot]` account, with no long-lived credentials cached anywhere.
 
 ## Why this exists
@@ -168,11 +170,12 @@ If you see a different account or a credential-helper error, check that `.ghrc` 
 For every `gh` call:
 
 1. **Resolve config.** `rc("gh", {}, {})` walks the standard rc search paths and returns a merged object. The third arg (`{}`) disables `rc`'s built-in argv parsing so no command-line flags get eaten by config parsing — all argv belongs to the real `gh`.
-2. **Validate.** A `zod` schema coerces `appId` / `installationId` to positive integers, requires `privateKeyPath`, and defaults `ghPath` to `/usr/bin/gh`. Missing or malformed keys produce a printed list of issues and `exit 1`.
-3. **Read the private key.** `Bun.file(privateKeyPath).text()`. If empty or unreadable the wrapper exits with a clear error.
-4. **Mint the token.** `createAppAuth({ appId, privateKey })` produces a signer; `auth({ type: "installation", installationId })` exchanges a signed JWT for a short-lived installation token.
-5. **Spawn.** `Bun.spawn([ghPath, ...process.argv.slice(2)], { stdio: "inherit", env: { ...process.env, GH_TOKEN: token } })` forwards every arg, inherits stdin/stdout/stderr, and injects the token as an environment variable scoped only to the child.
-6. **Propagate exit code.** `process.exit(proc.exitCode ?? 1)` so callers (`set -e`, CI, etc.) see the real `gh` exit status.
+2. **Pass-through shortcut.** If none of `appId`, `installationId`, or `privateKeyPath` are set, the wrapper spawns `/usr/bin/gh` directly and exits with its status — no validation, no token minting.
+3. **Validate.** A `zod` schema coerces `appId` / `installationId` to positive integers, requires `privateKeyPath`, and defaults `ghPath` to `/usr/bin/gh`. Missing or malformed keys produce a printed list of issues and `exit 1`.
+4. **Read the private key.** `Bun.file(privateKeyPath).text()`. If empty or unreadable the wrapper exits with a clear error.
+5. **Mint the token.** `createAppAuth({ appId, privateKey })` produces a signer; `auth({ type: "installation", installationId })` exchanges a signed JWT for a short-lived installation token.
+6. **Spawn.** `Bun.spawn([ghPath, ...process.argv.slice(2)], { stdio: "inherit", env: { ...process.env, GH_TOKEN: token } })` forwards every arg, inherits stdin/stdout/stderr, and injects the token as an environment variable scoped only to the child.
+7. **Propagate exit code.** `process.exit(proc.exitCode ?? 1)` so callers (`set -e`, CI, etc.) see the real `gh` exit status.
 
 ## Security notes
 
