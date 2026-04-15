@@ -1,5 +1,6 @@
 # gh (flying-dice/gh)
 
+
 A transparent **drop-in replacement for the `gh` CLI** that mints a fresh GitHub App installation token on every invocation and authenticates as the App's bot identity.
 
 Every call to `gh` goes through this wrapper, which reads a per-user `.ghrc`, mints a short-lived installation token via `@octokit/auth-app`, and then `exec`s the real `gh` binary with `GH_TOKEN` set — so the token lives only for the lifetime of that one command and is never stored on disk, in history, or in the environment of anything but the child process.
