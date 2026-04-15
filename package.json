@@ -9,7 +9,10 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/rc": "^1.2.4"
+    "@types/rc": "^1.2.4",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^23.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"
