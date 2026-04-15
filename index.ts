@@ -1,8 +1,13 @@
 import { createAppAuth } from "@octokit/auth-app";
+import debug from "debug";
 import { homedir } from "node:os";
 import { dirname, delimiter } from "node:path";
 import rc from "rc";
 import { z } from "zod";
+
+const VERSION = process.env.APP_VERSION ?? "dev";
+const log = debug("gh");
+log("version %s", VERSION);
 
 // Resolve the real gh binary by searching PATH with the wrapper's own
 // directory removed, so we can't recurse into ourselves.

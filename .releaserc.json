@@ -12,7 +12,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "bun run build && mv dist/gh gh_linux_amd64"
+        "prepareCmd": "APP_VERSION=${nextRelease.version} bun run build && mv dist/gh gh_linux_amd64"
       }
     ],
     [
