@@ -1,13 +1,30 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { homedir } from "node:os";
+import { dirname, delimiter } from "node:path";
 import rc from "rc";
 import { z } from "zod";
+
+// Resolve the real gh binary by searching PATH with the wrapper's own
+// directory removed, so we can't recurse into ourselves.
+const resolveRealGh = (): string => {
+  const selfDir = dirname(process.execPath);
+  const filteredPath = (process.env.PATH ?? "")
+    .split(delimiter)
+    .filter((p) => p && p !== selfDir)
+    .join(delimiter);
+  const found = Bun.which("gh", { PATH: filteredPath });
+  if (!found) {
+    console.error("gh wrapper: could not find real gh on PATH");
+    process.exit(1);
+  }
+  return found;
+};
 
 const ConfigSchema = z.object({
   appId: z.coerce.number().int().positive(),
   installationId: z.coerce.number().int().positive(),
   privateKeyPath: z.string().min(1),
-  ghPath: z.string().min(1).default("/usr/bin/gh"),
+  ghPath: z.string().min(1).optional(),
 });
 
 type Config = z.infer<typeof ConfigSchema>;
@@ -20,7 +37,7 @@ const expandHome = (p: string): string =>
 const raw = rc("gh", {}, {}) as Record<string, unknown>;
 
 if (!raw.appId && !raw.installationId && !raw.privateKeyPath) {
-  const proc = Bun.spawn(["/usr/bin/gh", ...process.argv.slice(2)], {
+  const proc = Bun.spawn([resolveRealGh(), ...process.argv.slice(2)], {
     stdio: ["inherit", "inherit", "inherit"],
   });
   await proc.exited;
@@ -50,10 +67,10 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-const config: Config = {
+const config: Config & { ghPath: string } = {
   ...parsed.data,
   privateKeyPath: expandHome(parsed.data.privateKeyPath),
-  ghPath: expandHome(parsed.data.ghPath),
+  ghPath: parsed.data.ghPath ? expandHome(parsed.data.ghPath) : resolveRealGh(),
 };
 
 const privateKey = await Bun.file(config.privateKeyPath).text();
