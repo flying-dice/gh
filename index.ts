@@ -19,6 +19,14 @@ const expandHome = (p: string): string =>
 // so every command-line argument is forwarded to the real gh unchanged.
 const raw = rc("gh", {}, {}) as Record<string, unknown>;
 
+if (!raw.appId && !raw.installationId && !raw.privateKeyPath) {
+  const proc = Bun.spawn(["/usr/bin/gh", ...process.argv.slice(2)], {
+    stdio: ["inherit", "inherit", "inherit"],
+  });
+  await proc.exited;
+  process.exit(proc.exitCode ?? 1);
+}
+
 const parsed = ConfigSchema.safeParse({
   appId: raw.appId,
   installationId: raw.installationId,
