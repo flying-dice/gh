@@ -1,5 +1,5 @@
 {
-  "name": "gh-token",
+  "name": "gh",
   "module": "index.ts",
   "type": "module",
   "private": true,

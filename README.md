@@ -1,4 +1,4 @@
-# gh-token
+# gh (flying-dice/gh)
 
 A transparent **drop-in replacement for the `gh` CLI** that mints a fresh GitHub App installation token on every invocation and authenticates as the App's bot identity.
 
@@ -71,7 +71,7 @@ The wrapper shells out to `gh` by **absolute path**, not by name, so it can't ac
 ### `dist/gh` (build output)
 
 - `dist/` is `.gitignore`d so compiled artifacts never land in git.
-- The binary is named `gh` (not `gh-token`) because that's what it is once installed — the project's repo name is historical.
+- The binary is named `gh` because that's what it is once installed — it shadows the real `gh` on `PATH`.
 
 ## Requirements
 
